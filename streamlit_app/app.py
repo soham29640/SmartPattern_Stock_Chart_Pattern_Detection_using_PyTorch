@@ -13,11 +13,11 @@ model.load_state_dict(torch.load("models/chart_pattern_model.h5", map_location=d
 model.to(device)
 model.eval()
 
-class_labels = [
-    "Head and Shoulders", "Double Top", "Double Bottom", "Cup and Handle", "Flag",
-    "Pennant", "Ascending Triangle", "Descending Triangle", "Symmetrical Triangle",
-    "Rounding Bottom", "Wedge", "Rectangle", "Triple Top", "Triple Bottom",
-    "Breakout", "Fakeout", "Channel Up", "Channel Down", "Parabolic Curve", "Other"
+class_names = [
+    'Ascending-Triangle', 'Channel-down', 'Channel-up', 'Cup-and-handle', 'Descending-Triangle',
+    'Double-Bottom', 'Double-Top', 'Falling-Wedge', 'Head-Shoulders', 'Inverse-Head-Shoulders',
+    'Resistance-Emerging', 'Resistance-breakout', 'Rising-Wedge', 'Rounding-Bottom',
+    'Rounding-Top', 'Support-breakout', 'Triangle', 'Triple-Bottom', 'Triple-Top', 'rectangle'
 ]
 
 st.title("📈 Chart Pattern Recognition")
