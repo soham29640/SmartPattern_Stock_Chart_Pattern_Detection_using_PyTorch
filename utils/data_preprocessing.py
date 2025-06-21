@@ -1,34 +1,57 @@
-import torchvision.transforms as transforms
-from torch.utils.data import Dataset, DataLoader
-from PIL import Image
-import pandas as pd
 import os
 
-class ChartPatternDataset(Dataset):
-    def __init__(self, image_dir, label_csv, transform=None):
-        self.image_dir = image_dir
-        self.labels = pd.read_csv(label_csv)
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.labels)
-
-    def __getitem__(self, idx):
-        img_path = os.path.join(self.image_dir, f"{self.labels.iloc[idx, 0]}.jpg")
-        image = Image.open(img_path).convert("RGB")
-        label = int(self.labels.iloc[idx, 1])
-        if self.transform:
-            image = self.transform(image)
-        return image, label
-    
-image_dir = "data/processed/train_images"
-label_csv = "data/processed/train_labels.csv"
-
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor()
+original_images = sorted([
+    f for f in os.listdir(os.path.join("data", "raw", "train", "images"))
+    if f.lower().endswith(('.jpg', '.png', '.jpeg'))
 ])
 
-dataset = ChartPatternDataset(image_dir=image_dir, label_csv=label_csv, transform=transform)
-train_loader = DataLoader(dataset, batch_size=32, shuffle=True)
+label_dir = os.path.join("data", "raw", "train", "labels")
 
+count = 0
+count1 = 0
+count2 = 0
+
+for i, original_image in enumerate(original_images, start=1):
+
+    base_name = os.path.splitext(original_image)[0]
+    label_file = os.path.join(label_dir, base_name + ".txt")
+
+    if os.path.exists(label_file):
+        with open(label_file, 'r') as file:
+            first_line = file.readline().strip()
+            if first_line:
+                count+=1
+            else:
+                count1+=1
+    else:
+        count2+=1
+
+print(count)        
+print(count1)
+print(count2)
+
+image_dir = "data/raw/train/images"
+
+deleted = 0
+
+for label_file in os.listdir(label_dir):
+    if label_file.endswith(".txt"):
+        label_path = os.path.join(label_dir, label_file)
+        with open(label_path, 'r') as f:
+            first_line = f.readline().strip()
+        
+        if not first_line:
+            base_name = os.path.splitext(label_file)[0]
+            
+            for ext in ['.jpg', '.png', '.jpeg']:
+                image_path = os.path.join(image_dir, base_name + ext)
+                if os.path.exists(image_path):
+                    os.remove(image_path)
+                    print(f"[INFO] Deleted image: {image_path}")
+                    break
+            
+            os.remove(label_path)
+            print(f"[INFO] Deleted empty label: {label_path}")
+            deleted += 1
+
+print(f"\nCleanup complete. {deleted} images + labels removed.")

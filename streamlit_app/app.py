@@ -22,14 +22,15 @@ class_names = [
     'Rounding-Top', 'Support-breakout', 'Triangle', 'Triple-Bottom', 'Triple-Top', 'rectangle'
 ]
 
+st.set_page_config(page_title="Chart Pattern Detector", layout="centered")
 st.title("📈 Chart Pattern Recognition")
-st.write("Upload a candlestick chart image, and the model will detect the pattern.")
+st.write("Upload a **candlestick chart image**, and the model will predict the top 3 possible patterns.")
 
-uploaded_file = st.file_uploader("Choose a chart image", type=["jpg", "png", "jpeg"])
+uploaded_file = st.sidebar.file_uploader("📤 Upload Chart Image", type=["jpg", "png", "jpeg"])
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+    st.image(image, caption="🖼 Uploaded Image", use_column_width=True)
 
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -37,6 +38,7 @@ if uploaded_file is not None:
         transforms.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
     ])
+
     input_tensor = transform(image).unsqueeze(0).to(device)
 
     with torch.no_grad():
@@ -44,15 +46,18 @@ if uploaded_file is not None:
         probs = torch.softmax(output, dim=1)[0]
         top_probs, top_idxs = torch.topk(probs, 3)
 
-    st.success("🧠 Top Predictions:")
+    st.markdown("## 🚀 Top 3 Predicted Patterns:")
     for i in range(3):
         label = class_names[top_idxs[i]]
         confidence = top_probs[i].item() * 100
-        st.write(f"{i+1}. **{label}** — {confidence:.2f}% confidence")
+        st.markdown(f"**{i+1}. {label}** — `{confidence:.2f}%`")
 
-    top_df = pd.DataFrame({
+    chart_data = pd.DataFrame({
         'Pattern': [class_names[i] for i in top_idxs],
         'Confidence (%)': [round(p.item() * 100, 2) for p in top_probs]
     })
 
-    st.bar_chart(top_df.set_index('Pattern'))
+    st.markdown("### 📊 Confidence Chart")
+    st.bar_chart(chart_data.set_index('Pattern'))
+else:
+    st.info("⬅️ Please upload a chart image from the sidebar.")

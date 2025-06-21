@@ -11,10 +11,9 @@ for filename in os.listdir(image_folder):
         count+=1
         with Image.open(image_path) as img:
             size = img.size
+            
 print(count)
 print(img.size)
-
-
 
 raw_images_folder = os.path.join("data", "raw", "train", "images")
 processed_images_folder = os.path.join("data", "processed", "train_images")  
