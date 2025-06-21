@@ -1,7 +1,5 @@
 import os
 import csv
-from image_preprocessing import count
-import numpy as np
 
 labels_folder = os.path.join("data", "raw", "train", "labels")
 output_csv = os.path.join("data", "processed", "train_labels.csv")
@@ -14,21 +12,24 @@ class_names = [
 ]
 
 label_data = []
-filename_id = 1
 
 for filename in sorted(os.listdir(labels_folder)):
     if filename.endswith(".txt"):
         file_path = os.path.join(labels_folder, filename)
         with open(file_path, 'r') as file:
-            for line in file:
-                parts = line.strip().split()
-                if parts:
-                    class_id = int(parts[0])
-                    class_name = class_names[class_id]
-                    label_data.append([filename_id, class_id, class_name])
-        filename_id += 1 
+            for i, line in enumerate(file):
+                if i == 0:
+                    parts = line.strip().split()
+                    if parts:
+                        class_id = int(parts[0])
+                        class_name = class_names[class_id]
+                        image_name = os.path.splitext(filename)[0]
+                        label_data.append([image_name, class_id, class_name])
+                    break
 
 with open(output_csv, 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow(["Filename", "ClassID", "ClassName"])
     writer.writerows(label_data)
+
+print(f"CSV saved to {output_csv} with {len(label_data)} entries.")
