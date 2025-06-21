@@ -1,7 +1,8 @@
 import os
 import csv
 
-labels_folder = os.path.join("data", "raw", "train", "labels")
+label_dir = os.path.join("data", "raw", "train", "labels")
+image_dir = os.path.join("data", "processed", "train_images")
 output_csv = os.path.join("data", "processed", "train_labels.csv")
 
 class_names = [
@@ -13,23 +14,27 @@ class_names = [
 
 label_data = []
 
-for filename in sorted(os.listdir(labels_folder)):
-    if filename.endswith(".txt"):
-        file_path = os.path.join(labels_folder, filename)
-        with open(file_path, 'r') as file:
-            for i, line in enumerate(file):
-                if i == 0:
-                    parts = line.strip().split()
-                    if parts:
-                        class_id = int(parts[0])
-                        class_name = class_names[class_id]
-                        image_name = os.path.splitext(filename)[0]
-                        label_data.append([image_name, class_id, class_name])
-                    break
+original_images = sorted([
+    f for f in os.listdir(os.path.join("data", "raw", "train", "images"))
+    if f.lower().endswith(('.jpg', '.png', '.jpeg'))
+])
 
-with open(output_csv, 'w', newline='') as csvfile:
-    writer = csv.writer(csvfile)
+for i, original_image in enumerate(original_images, start=1):
+    base_name = os.path.splitext(original_image)[0]
+    label_file = os.path.join(label_dir, base_name + ".txt")
+
+    if os.path.exists(label_file):
+        with open(label_file, 'r') as file:
+            first_line = file.readline().strip()
+            if first_line:
+                class_id = int(first_line.split()[0])
+                label_data.append([i, class_id, class_names[class_id]])
+    else:
+        print(f"[WARN] Missing label for: {original_image}")
+
+with open(output_csv, 'w', newline='') as f:
+    writer = csv.writer(f)
     writer.writerow(["Filename", "ClassID", "ClassName"])
     writer.writerows(label_data)
 
-print(f"CSV saved to {output_csv} with {len(label_data)} entries.")
+print(f"[INFO] Written {len(label_data)} entries to {output_csv}")

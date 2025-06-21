@@ -16,31 +16,31 @@ num_epochs = 25
 
 for epoch in range(num_epochs):
     model.train()
-    total_loss = 0
+    total_loss = 0.0
     correct = 0
     total = 0
 
     for images, labels in train_loader:
         images, labels = images.to(device), labels.to(device)
 
+        optimizer.zero_grad()
         outputs = model(images)
         loss = criterion(outputs, labels)
-
-        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-        total_loss += loss.item()
+        total_loss += loss.item() * images.size(0)
         _, predicted = torch.max(outputs.data, 1)
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
 
     accuracy = 100 * correct / total
-    print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss:.4f}, Accuracy: {accuracy:.2f}%")
+    avg_loss = total_loss / total
+    print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}, Accuracy: {accuracy:.2f}%")
 
-    scheduler.step()  
+    scheduler.step()
 
-save_path = "models/chart_pattern_model.h5"
+save_path = "models/chart_pattern_model.pth"
 os.makedirs(os.path.dirname(save_path), exist_ok=True)
 torch.save(model.state_dict(), save_path)
 print(f"Model saved to {save_path}")
