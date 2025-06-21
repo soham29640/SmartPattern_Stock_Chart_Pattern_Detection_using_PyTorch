@@ -40,6 +40,6 @@ if uploaded_file is not None:
         predicted_class = torch.argmax(output, dim=1).item()
         confidence = torch.softmax(output, dim=1)[0][predicted_class].item()
 
-    label = class_labels[predicted_class]
+    label = class_names[predicted_class]
     st.success(f"🧠 Predicted Pattern: **{label}**")
     st.info(f"Confidence: {confidence*100:.2f}%")
