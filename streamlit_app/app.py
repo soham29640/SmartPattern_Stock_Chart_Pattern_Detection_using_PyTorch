@@ -2,14 +2,16 @@ import torch
 from PIL import Image
 import streamlit as st
 import torchvision.transforms as transforms
+import pandas as pd
 import sys
 import os
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils.model import ChartPatternCNN
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = ChartPatternCNN(num_classes=20)
-model.load_state_dict(torch.load("models/chart_pattern_model.h5", map_location=device))
+model.load_state_dict(torch.load("models/chart_pattern_model.pth", map_location=device))
 model.to(device)
 model.eval()
 
@@ -31,15 +33,26 @@ if uploaded_file is not None:
 
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
     ])
     input_tensor = transform(image).unsqueeze(0).to(device)
 
     with torch.no_grad():
         output = model(input_tensor)
-        predicted_class = torch.argmax(output, dim=1).item()
-        confidence = torch.softmax(output, dim=1)[0][predicted_class].item()
+        probs = torch.softmax(output, dim=1)[0]
+        top_probs, top_idxs = torch.topk(probs, 3)
 
-    label = class_names[predicted_class]
-    st.success(f"🧠 Predicted Pattern: **{label}**")
-    st.info(f"Confidence: {confidence*100:.2f}%")
+    st.success("🧠 Top Predictions:")
+    for i in range(3):
+        label = class_names[top_idxs[i]]
+        confidence = top_probs[i].item() * 100
+        st.write(f"{i+1}. **{label}** — {confidence:.2f}% confidence")
+
+    top_df = pd.DataFrame({
+        'Pattern': [class_names[i] for i in top_idxs],
+        'Confidence (%)': [round(p.item() * 100, 2) for p in top_probs]
+    })
+
+    st.bar_chart(top_df.set_index('Pattern'))
