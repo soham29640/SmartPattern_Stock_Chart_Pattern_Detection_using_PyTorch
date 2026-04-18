@@ -62,6 +62,8 @@ ResNet18 Backbone (pretrained ImageNet weights)
     │
 AdaptiveAvgPool2d → Flatten
     │
+Dropout(p=0.3)
+    │
 Linear(512 → 20)   ← replaced final FC layer
     │
 Output logits (20 classes) — apply Sigmoid for probabilities
@@ -107,10 +109,10 @@ data/raw/train/
           25 epochs → saves models/chart_pattern_model.pth
           │
           ▼
-  [Step 7] streamlit_app/app.py
+  [Step 7] app.py
           Load saved model → accept uploaded image
           Predict top-3 patterns with confidence scores
-          Display bar chart of predictions
+          Display bar chart + full class breakdown
 ```
 
 ---
@@ -168,8 +170,9 @@ python utils/label_preprocessing.py
   - Random horizontal flip (p=0.5)
   - Random rotation (±5°)
   - Color jitter (brightness/contrast ±10%)
-  - Normalize (mean=0.5, std=0.5 per channel)
-- Wraps the dataset in a `DataLoader` with `batch_size=32` and `shuffle=True`
+  - Normalize (ImageNet mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+- Also provides a `get_val_transform()` (no augmentation) used for the validation split
+- Wraps the dataset in a `DataLoader` with `batch_size=32`
 
 > This file is imported by `train.py`; it does not need to be run directly.
 
@@ -179,8 +182,7 @@ python utils/label_preprocessing.py
 **Purpose:** Define the CNN model architecture.
 
 - Loads `ResNet18` with pretrained ImageNet weights
-- Replaces the final fully-connected layer with `Linear(512, 20)` for multi-label output
-- Provides `save_model()` and `load_model()` helper methods
+- Replaces the final fully-connected layer with `Dropout(0.3) → Linear(512, 20)` for multi-label output
 
 > This file is imported by both `train.py` and the Streamlit app; it does not need to be run directly.
 
@@ -190,22 +192,22 @@ python utils/label_preprocessing.py
 **Purpose:** Train the model end-to-end and save the weights.
 
 - Reads `data/processed/train_labels.csv` to compute per-class positive weights for `BCEWithLogitsLoss`
+- Splits data into **90% train / 10% validation** with a fixed random seed
 - Initializes `ChartPatternCNN` and moves it to GPU (falls back to CPU)
-- Trains for **25 epochs** with:
-  - **Optimizer:** Adam (lr=0.001)
+- Trains for up to **25 epochs** with early stopping (patience=5):
+  - **Optimizer:** Adam (lr=0.001, weight_decay=1e-4)
   - **Scheduler:** StepLR — halves lr every 10 epochs
   - **Loss:** BCEWithLogitsLoss with `pos_weight` for class imbalance
-- Reports epoch-level loss and exact-match multi-label accuracy
-- Saves the final model to `models/chart_pattern_model.pth`
+- Reports epoch-level train/val loss and exact-match multi-label accuracy
+- Saves the **best** model (lowest val loss) to `models/chart_pattern_model.pth`
 
 ```bash
-cd utils
-python train.py
+python utils/train.py
 ```
 
 ---
 
-### Step 7 — `streamlit_app/app.py`
+### Step 7 — `app.py`
 **Purpose:** Serve real-time predictions via an interactive web interface.
 
 - Loads the trained model from `models/chart_pattern_model.pth`
@@ -213,9 +215,10 @@ python train.py
 - Applies the same resize + normalize transform used in training
 - Runs inference and displays the **top 3 predicted patterns** with confidence scores
 - Renders an interactive bar chart of predicted probabilities
+- Also shows a full breakdown of all 20 class probabilities in an expandable section
 
 ```bash
-streamlit run streamlit_app/app.py
+streamlit run app.py
 ```
 
 ---
@@ -246,11 +249,7 @@ SmartPattern/
 ├── models/
 │   └── chart_pattern_model.pth  ← Saved model weights (generated after training)
 │
-├── streamlit_app/
-│   └── app.py                   ← Step 7: Streamlit inference web app
-│
-├── notebooks/
-│   └── cnn_model.py             ← Experimental notebook scripts
+├── app.py                       ← Step 7: Streamlit inference web app
 │
 ├── requirements.txt
 ├── LICENSE
@@ -318,8 +317,7 @@ python utils/image_preprocessing.py
 python utils/label_preprocessing.py
 
 # Step 4–6 – Train the model (imports dataset and model internally)
-cd utils
-python train.py
+python utils/train.py
 ```
 
 The trained model will be saved to `models/chart_pattern_model.pth`.
@@ -327,7 +325,7 @@ The trained model will be saved to `models/chart_pattern_model.pth`.
 ### Running the Web App
 
 ```bash
-streamlit run streamlit_app/app.py
+streamlit run app.py
 ```
 
 Open the URL shown in the terminal (default: `http://localhost:8501`), upload a candlestick chart image via the sidebar, and view the top-3 predicted patterns with confidence scores.
@@ -336,18 +334,20 @@ Open the URL shown in the terminal (default: `http://localhost:8501`), upload a 
 
 ## 🤖 Model Details
 
-| Property          | Value                           |
-|-------------------|---------------------------------|
-| Backbone          | ResNet18 (pretrained ImageNet)  |
-| Input Size        | 224 × 224 × 3                   |
-| Output            | 20 logits (multi-label)         |
-| Loss Function     | BCEWithLogitsLoss + pos_weight  |
-| Optimizer         | Adam (lr=0.001)                 |
-| LR Scheduler      | StepLR (step=10, γ=0.5)         |
-| Epochs            | 25                              |
-| Batch Size        | 32                              |
-| Evaluation Metric | Exact multi-label match accuracy|
-| Hardware          | GPU (CUDA) / CPU fallback       |
+| Property          | Value                                    |
+|-------------------|------------------------------------------|
+| Backbone          | ResNet18 (pretrained ImageNet)           |
+| Input Size        | 224 × 224 × 3                            |
+| Output            | 20 logits (multi-label)                  |
+| Final Head        | Dropout(0.3) → Linear(512, 20)           |
+| Loss Function     | BCEWithLogitsLoss + pos_weight           |
+| Optimizer         | Adam (lr=0.001, weight_decay=1e-4)       |
+| LR Scheduler      | StepLR (step=10, γ=0.5)                  |
+| Epochs            | Up to 25 (early stopping, patience=5)   |
+| Val Split         | 10% held out                            |
+| Batch Size        | 32                                       |
+| Evaluation Metric | Exact multi-label match accuracy         |
+| Hardware          | GPU (CUDA) / CPU fallback                |
 
 ---
 
